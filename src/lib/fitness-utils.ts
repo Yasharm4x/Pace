@@ -1,17 +1,21 @@
 // Fitness calculation utilities
 
+/* ------------------------------------------------------------------ */
+/*  TYPES                                                             */
+/* ------------------------------------------------------------------ */
+
 export interface UserProfile {
   age: number;
   height: number; // cm
   startingWeight: number; // kg
   targetWeight: number; // kg
   startDate: string; // ISO date
-  goalDate: string; // ISO date (derived from goalMonth)
+
+  goalMonth: string; // "YYYY-MM"
+  goalDate: string;  // ISO date (4th of goal month)
+
   dailyStepGoal: number;
   dailyCalorieGoal: number;
-
-  // ✅ NEW (optional)
-  goalMonth?: string; // format: "YYYY-MM"
 }
 
 export interface DailyEntry {
@@ -32,11 +36,17 @@ export interface FitnessData {
 /*  GOAL MONTH HELPERS                                                 */
 /* ------------------------------------------------------------------ */
 
-// Convert a goal month (YYYY-MM) to the last day of that month (ISO)
+// Convert "YYYY-MM" → April 4th (Safari-safe)
 export function monthToGoalDate(month: string): string {
   const [year, m] = month.split('-').map(Number);
-  // Day 0 of next month = last day of selected month
-  return new Date(year, m, 0, 23, 59, 59).toISOString();
+
+  // Goal date = 4th of selected month
+  const goalDate = new Date(year, m - 1, 4);
+
+  // Normalize time (important for iOS Safari)
+  goalDate.setHours(0, 0, 0, 0);
+
+  return goalDate.toISOString();
 }
 
 /* ------------------------------------------------------------------ */
@@ -58,7 +68,7 @@ export function getBMICategory(bmi: number): {
   return { label: 'Obese', color: 'obese' };
 }
 
-// Estimate body fat percentage (Deurenberg formula)
+// Deurenberg approximation
 export function estimateBodyFat(
   bmi: number,
   age: number,
@@ -88,9 +98,10 @@ export function calculateMovingAverage(
   if (weightEntries.length === 0) return null;
 
   const sum = weightEntries.reduce(
-    (acc, e) => acc + (e.weight || 0),
+    (acc, e) => acc + (e.weight ?? 0),
     0
   );
+
   return sum / weightEntries.length;
 }
 
@@ -117,7 +128,7 @@ export function calculateWeeklyLossRate(
   if (daysDiff < 1) return null;
 
   const weightDiff =
-    (first.weight || 0) - (last.weight || 0);
+    (first.weight ?? 0) - (last.weight ?? 0);
 
   return (weightDiff / daysDiff) * 7;
 }
@@ -132,7 +143,10 @@ export function calculateRequiredWeeklyLoss(
   goalDate: string
 ): number | null {
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   const goal = new Date(goalDate);
+  goal.setHours(0, 0, 0, 0);
 
   if (goal <= today) return null;
 
@@ -164,6 +178,7 @@ export function calculateProjectedGoalDate(
 
   const projectedDate = new Date();
   projectedDate.setDate(projectedDate.getDate() + daysNeeded);
+  projectedDate.setHours(0, 0, 0, 0);
 
   return projectedDate;
 }
@@ -183,24 +198,12 @@ export function getProgressStatus(
   const diff = currentPace - requiredPace;
 
   if (diff > 0.1) {
-    return {
-      status: 'ahead',
-      label: 'Ahead of schedule',
-      color: 'success',
-    };
-  } else if (diff > -0.1) {
-    return {
-      status: 'on-track',
-      label: 'On track',
-      color: 'primary',
-    };
-  } else {
-    return {
-      status: 'behind',
-      label: 'Behind schedule',
-      color: 'warning',
-    };
+    return { status: 'ahead', label: 'Ahead of schedule', color: 'success' };
   }
+  if (diff > -0.1) {
+    return { status: 'on-track', label: 'On track', color: 'primary' };
+  }
+  return { status: 'behind', label: 'Behind schedule', color: 'warning' };
 }
 
 export function calculateStreak(entries: DailyEntry[]): number {
@@ -221,17 +224,12 @@ export function calculateStreak(entries: DailyEntry[]): number {
     const entryDate = new Date(entry.date);
     entryDate.setHours(0, 0, 0, 0);
 
-    const daysDiff = Math.round(
+    const diffDays =
       (checkDate.getTime() - entryDate.getTime()) /
-        (1000 * 60 * 60 * 24)
-    );
+      (1000 * 60 * 60 * 24);
 
-    if (daysDiff === 0) {
+    if (Math.round(diffDays) === 0) {
       streak++;
-      checkDate.setDate(checkDate.getDate() - 1);
-    } else if (daysDiff === 1 && streak === 0) {
-      streak++;
-      checkDate = entryDate;
       checkDate.setDate(checkDate.getDate() - 1);
     } else {
       break;
@@ -261,10 +259,8 @@ export function formatDate(
     if (diffDays === 0) return 'today';
     if (diffDays === 1) return 'tomorrow';
     if (diffDays === -1) return 'yesterday';
-    if (diffDays > 0 && diffDays < 7)
-      return `in ${diffDays} days`;
-    if (diffDays < 0 && diffDays > -7)
-      return `${Math.abs(diffDays)} days ago`;
+    if (diffDays > 0 && diffDays < 7) return `in ${diffDays} days`;
+    if (diffDays < 0 && diffDays > -7) return `${Math.abs(diffDays)} days ago`;
   }
 
   if (format === 'long') {
@@ -313,10 +309,9 @@ export function generateInsight(
         (1000 * 60 * 60 * 24)
     );
 
-    if (daysAhead > 7) {
-      return `Great momentum! At this pace, you'll reach your goal ${daysAhead} days early.`;
-    }
-    return `You're on track — keep the consistency going.`;
+    return daysAhead > 7
+      ? `Great momentum! At this pace, you'll reach your goal ${daysAhead} days early.`
+      : "You're on track — keep the consistency going.";
   }
 
   if (requiredRate && requiredRate > weeklyRate) {
