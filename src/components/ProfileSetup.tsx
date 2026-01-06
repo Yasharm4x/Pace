@@ -14,7 +14,6 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
   const [height, setHeight] = useState('');
   const [startingWeight, setStartingWeight] = useState('');
   const [targetWeight, setTargetWeight] = useState('');
-
   const [goalMonth, setGoalMonth] = useState('');
 
   const [dailyStepGoal, setDailyStepGoal] = useState('10000');
@@ -144,12 +143,8 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
               <div className="flex items-center gap-2 text-success text-sm">
                 <Target size={16} />
                 <span>
-                  Lose{' '}
-                  {(
-                    parseFloat(startingWeight) -
-                    parseFloat(targetWeight)
-                  ).toFixed(1)}{' '}
-                  kg by {goalMonth}
+                  Lose {(parseFloat(startingWeight) - parseFloat(targetWeight)).toFixed(1)} kg
+                  by {goalMonth}
                 </span>
               </div>
             </div>
@@ -195,9 +190,7 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
                 type="number"
                 inputMode="numeric"
                 value={dailyCalorieGoal}
-                onChange={(e) =>
-                  setDailyCalorieGoal(e.target.value)
-                }
+                onChange={(e) => setDailyCalorieGoal(e.target.value)}
                 placeholder="500"
                 className="w-full p-4 rounded-xl bg-secondary text-foreground text-lg font-medium focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
@@ -275,4 +268,3 @@ export function ProfileSetup({ onComplete }: ProfileSetupProps) {
     </div>
   );
 }
-
