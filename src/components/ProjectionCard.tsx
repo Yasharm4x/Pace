@@ -28,21 +28,19 @@ export function ProjectionCard({
   currentWeight,
 }: ProjectionCardProps) {
   const projectionData = useMemo(() => {
-    const today = new Date();
-
-    // --- Dates ---
-    const goalDate = profile.goalDate
-      ? new Date(profile.goalDate)
-      : null;
-
     const MS_PER_WEEK = 1000 * 60 * 60 * 24 * 7;
 
+    // --- Normalize dates (Safari-safe) ---
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const goalDate = new Date(profile.goalDate);
+    goalDate.setHours(0, 0, 0, 0);
+
+    const diffMs = goalDate.getTime() - today.getTime();
+
     const weeksRemaining =
-      goalDate && goalDate > today
-        ? Math.ceil(
-            (goalDate.getTime() - today.getTime()) / MS_PER_WEEK
-          )
-        : 0;
+      diffMs > 0 ? Math.ceil(diffMs / MS_PER_WEEK) : 0;
 
     // --- Weights ---
     const weightRemaining = Math.max(
@@ -50,10 +48,10 @@ export function ProjectionCard({
       currentWeight - profile.targetWeight
     );
 
-    // --- Actual weekly loss rate (from entries) ---
+    // --- Actual weekly loss rate ---
     const weeklyRate = calculateWeeklyLossRate(entries);
 
-    // --- Required weekly loss rate (SAFE) ---
+    // --- Required weekly loss rate ---
     const requiredRate =
       weeksRemaining > 0 && weightRemaining > 0
         ? +(weightRemaining / weeksRemaining).toFixed(2)
